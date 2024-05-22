@@ -5,8 +5,8 @@
 master=$(_get_master_username)
 distribution=$(lsb_release -is)
 
-airsonicdir="/opt/airsonic" #Where to install airosnic
-airsonicusr="airsonic"      #Who to run airsonic as
+airsonicdir="/opt/airsonic" # Where to install Airsonic
+airsonicusr="airsonic"      # Who to run Airsonic as
 
 #shellcheck source=sources/functions/java
 . /etc/swizzin/sources/functions/java
@@ -14,7 +14,7 @@ install_java8
 
 airsonic_dl() {
     echo_progress_start "Downloading Airsonic binary"
-    mkdir $airsonicdir -p
+    mkdir -p $airsonicdir
     latest_version=$(curl -fsSLI -o /dev/null -w %{url_effective} https://github.com/airsonic/airsonic/releases/latest | grep -oP '([^\/]+$)')
     dlurl=https://github.com/airsonic/airsonic/releases/download/${latest_version}/airsonic.war
     echo_log_only "dlurl = $dlurl"
@@ -22,7 +22,7 @@ airsonic_dl() {
         echo_error "Download failed!"
         exit 1
     fi
-    useradd $airsonicusr --system -d "$airsonicdir" >> "$log" 2>&1
+    useradd -r -d "$airsonicdir" -s /usr/bin/nologin $airsonicusr >> "$log" 2>&1
     usermod -a -G "$master" $airsonicusr
     chown -R $airsonicusr:$airsonicusr $airsonicdir
     echo_progress_done "Binary DL'd"
@@ -34,10 +34,7 @@ airsonic_systemd() {
     sed -i "s|/var/airsonic|$airsonicdir|g" /etc/systemd/system/airsonic.service
     sed -i 's|PORT=8080|PORT=8185|g' /etc/systemd/system/airsonic.service
 
-    defconfdir="/etc/sysconfig"
-    if [[ $distribution == "Debian" ]]; then
-        defconfdir="/etc/defaults"
-    fi
+    defconfdir="/etc/default"
     wget https://raw.githubusercontent.com/airsonic/airsonic/master/contrib/airsonic-systemd-env -O "${defconfdir}"/airsonic >> "$log" 2>&1
 
     systemctl daemon-reload -q
@@ -51,7 +48,7 @@ airsonic_nginx() {
         systemctl reload nginx
         echo_progress_done
     else
-        echo_info "Airosnic will run on <IP/domain.tld>${bold}:8185"
+        echo_info "Airsonic will run on <IP/domain.tld>${bold}:8185"
     fi
 }
 
