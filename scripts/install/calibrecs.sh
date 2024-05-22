@@ -57,12 +57,9 @@ User=$CALIBRE_LIBRARY_USER
 Group=$CALIBRE_LIBRARY_USER
 ExecStart=/usr/bin/calibre-server --max-opds-items=30 --max-opds-ungrouped-items=100 --port 8089 "${CALIBRE_LIBRARY_PATH:=CALIBRE_LIBRARY_PATH_GOES_HERE}"
 
-
 [Install]
 WantedBy=multi-user.target
-    
 CALICS
-    # ExecStart=/usr/bin/calibre-server --max-opds-items=30 --max-opds-ungrouped-items=100 --port 8089 --log="/home/$CALIBRE_LIBRARY_USER/.config/calibrecs/.calibre.log" --enable-auth --userdb="/home/$CALIBRE_LIBRARY_USER/.config/calibre/server-users.sqlite" "${CALIBRE_LIBRARY_PATH:=CALIBRE_LIBRARY_PATH_GOES_HERE}"
     echo_progress_done "Calibre content server installed"
     echo_info "The Calibre content server will run on port 8089, please make note of this in case you want to use it in automation"
 }
@@ -79,7 +76,6 @@ _nginx() {
         echo_info "Please modify /etc/systemd/system/calibrecs.service to point to your library accordingly later."
         return
     fi
-
 }
 
 # adduser function is disabled as currently not all arches support this.
