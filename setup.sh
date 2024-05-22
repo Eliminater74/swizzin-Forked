@@ -28,10 +28,9 @@ touch $log
 # Setting up /etc/swizzin
 #shellcheck disable=SC2120
 function _source_setup() {
-    echo -e "...\tInstalling git"      # The one true dependency
-    apt-get update -q >> $log 2>&1     # Force update just in case sources were never pulled
-    apt-get install git -y -qq >> $log # DO NOT PUT MORE DEPENDENCIES HERE
-    echo -e "\tGit Installed"          # All dependencies go to scripts/update/10-dependencies.sh
+    echo -e "...\tInstalling git"           # The one true dependency
+    pacman -Sy --noconfirm git >> $log 2>&1 # Force update just in case sources were never pulled
+    echo -e "\tGit Installed"               # All dependencies go to scripts/update/10-dependencies.sh
 
     if [[ "$*" =~ '--local' ]]; then
         RelativeScriptPath=$(dirname "${BASH_SOURCE[0]}")
@@ -84,12 +83,7 @@ function _option_parse() {
                 echo -e "\tPass = $pass" #Not an echo_info as we don't want this to hit the logs
                 ;;
             --skip-cracklib)
-                if check_installed libpam-cracklib; then
-                    echo_warn "Can't skip password check as libpam-cracklib is installed"
-                else
-                    export SKIPCRACKLIB=true
-                    echo_info "Cracklib will be skipped"
-                fi
+                echo_warn "Skipping cracklib not applicable for Arch"
                 ;;
             --domain)
                 shift
@@ -134,7 +128,6 @@ function _option_parse() {
                     readarray -td: installArray < <(printf '%s' "$packages")
                 fi
                 unattend=true
-                export SKIPCRACKLIB=true
                 ;;
             --unattend)
                 unattend=true
@@ -188,36 +181,31 @@ _option_parse "$@"
 _os() {
     if [ ! -d /install ]; then mkdir /install; fi
     if [ ! -d /root/logs ]; then mkdir /root/logs; fi
-    if ! which lsb_release > /dev/null; then
-        echo -e "...\tInstalling lsb-release"      # Okay MAYBE there's one more depend until we gut this app in favour of /etc/os-release
-        apt-get install lsb-release -y -qq >> $log # DO NOT PUT MORE DEPENDENCIES HERE
+    if ! command -v lsb_release > /dev/null; then
+        echo -e "...\tInstalling lsb-release"     # Okay MAYBE there's one more depend until we gut this app in favour of /etc/os-release
+        pacman -S --noconfirm lsb-release >> $log # DO NOT PUT MORE DEPENDENCIES HERE
     fi
     distribution=$(lsb_release -is)
     codename=$(lsb_release -cs)
-    if [[ ! $distribution =~ ^(Debian|Ubuntu)$ ]]; then
-        echo_error "Your distribution ($distribution) is not supported. Swizzin requires Ubuntu or Debian."
-        exit 1
-    fi
-    if [[ ! $codename =~ ^(buster|focal|bullseye|jammy|bookworm)$ ]]; then
-        echo_error "Your release ($codename) of $distribution is not supported."
+    if [[ ! $distribution =~ ^(Arch)$ ]]; then
+        echo_error "Your distribution ($distribution) is not supported. Swizzin requires Arch Linux."
         exit 1
     fi
 }
 
 function _preparation() {
     echo_info "Preparing system"
-    apt-get install uuid-runtime -yy >> $log 2>&1
-    apt_update # Do this because sometimes the system install is so fresh it's got a good stam but it is "empty"
-    apt_upgrade
+    pacman -S --noconfirm uuid-runtime >> $log 2>&1
+    pacman -Syu --noconfirm # Do this because sometimes the system install is so fresh it's got a good stam but it is "empty"
 
     if ! bash /etc/swizzin/scripts/update/10-dependencies.sh; then
-        echo_error "Dependencies failed to install\nPlease reveiw the log file and try again.\nFeel free to visit our Discord in case you need assistance."
+        echo_error "Dependencies failed to install\nPlease review the log file and try again.\nFeel free to visit our Discord in case you need assistance."
         exit 1
     fi
 
     nofile=$(grep "DefaultLimitNOFILE=500000" /etc/systemd/system.conf)
     if [[ ! "$nofile" ]]; then echo "DefaultLimitNOFILE=500000" >> /etc/systemd/system.conf; fi
-    echo_progress_done "Setup succesful"
+    echo_progress_done "Setup successful"
     echo
 }
 
@@ -240,7 +228,7 @@ function _adduser() {
     unset SETUP_USER
     pass=
     unset pass
-    echo_log_only "User initialised"
+    echo_log_only "User initialized"
 }
 
 function _choices() {
@@ -288,11 +276,11 @@ function _choices() {
 function _check_results() {
     results=/root/results
     if grep -q nginx "$results"; then
-        if [[ -n $(pidof apache2) ]]; then
-            if (whiptail --title "apache2 conflict" --yesno --yes-button "Purge it!" --no-button "Disable it" "WARNING: The installer has detected that apache2 is already installed. To continue, the installer must either purge apache2 or disable it." 8 78); then
-                export apache2=purge
+        if [[ -n $(pidof httpd) ]]; then
+            if (whiptail --title "httpd conflict" --yesno --yes-button "Purge it!" --no-button "Disable it" "WARNING: The installer has detected that httpd is already installed. To continue, the installer must either purge httpd or disable it." 8 78); then
+                export httpd=purge
             else
-                export apache2=disable
+                export httpd=disable
             fi
         fi
     fi
@@ -360,9 +348,7 @@ function _post() {
     #echo "export PATH=\$PATH:/usr/local/bin/swizzin" >> /home/$user/.bashrc
     #chown ${user}: /home/$user/.profile
     echo "Defaults    secure_path = /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/local/bin/swizzin" > /etc/sudoers.d/secure_path
-    if [[ $distribution = "Ubuntu" ]]; then
-        echo 'Defaults  env_keep -="HOME"' > /etc/sudoers.d/env_keep
-    fi
+    echo 'Defaults  env_keep -="HOME"' > /etc/sudoers.d/env_keep
 
     ring_the_bell
     echo_success "Swizzin installation complete!"
@@ -380,7 +366,7 @@ function _post() {
     fi
 
     if [[ -f /var/run/reboot-required ]]; then
-        echo_warn "The server requires a reboot to finalise this installation. Please reboot now."
+        echo_warn "The server requires a reboot to finalize this installation. Please reboot now."
     else
         echo_info "You can now use the box command to manage swizzin features, e.g. \`box install nginx panel\`"
     fi
