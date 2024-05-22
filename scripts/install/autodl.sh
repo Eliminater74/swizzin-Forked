@@ -16,13 +16,13 @@
 #   QuickBox.IO does not grant the end-user the right to distribute this
 #   code in a means to supply commercial monetization. If you would like
 #   to include QuickBox in your commercial project, write to echo@quickbox.io
-#   with a summary of your project as well as its intended use for moentization.
+#   with a summary of your project as well as its intended use for monetization.
 #
 
 _string() { perl -le 'print map {(a..z,A..Z,0..9)[rand 62] } 0..pop' 15; }
 
 function _installautodl() {
-    apt_install irssi screen unzip libarchive-zip-perl libnet-ssleay-perl libhtml-parser-perl libxml-libxml-perl libjson-perl libjson-xs-perl libxml-libxslt-perl
+    pacman -S --noconfirm irssi screen unzip perl-libarchive-zip perl-net-ssleay perl-html-parser perl-xml-libxml perl-json perl-json-xs perl-xml-libxslt
 }
 
 function _autoconf() {
