@@ -25,7 +25,10 @@ else
 fi
 
 _install() {
-    apt_install xdg-utils wget xz-utils libxcb-xinerama0 libfontconfig libgl1-mesa-glx libopengl0
+    echo_progress_start "Installing calibre dependencies"
+    pacman -S --noconfirm xdg-utils wget xz libxcb libxinerama libfontconfig mesa libglvnd
+    echo_progress_done "Dependencies installed"
+
     echo_progress_start "Installing calibre"
     if [[ $(_os_arch) = "amd64" ]]; then
         wget https://download.calibre-ebook.com/linux-installer.sh -O /tmp/calibre-installer.sh >> $log 2>&1
@@ -35,14 +38,13 @@ _install() {
         fi
     else
         echo_info "Calibre installer does not support $(_os_arch), falling back to package manager"
-        apt_install calibre
+        pacman -S --noconfirm calibre
     fi
     echo_progress_done "Calibre installed"
 }
 
 _library() {
     if [ -e "$CALIBRE_LIBRARY_PATH" ]; then
-        # echo_info "Library "
         echo_info "Skipping library creation of $CALIBRE_LIBRARY_PATH"
         return 0
     fi
@@ -56,12 +58,11 @@ _library() {
 
     echo_progress_start "Creating library"
 
-    # Need to start a library with a book so might as well get some good ass literature here
     wget https://www.gutenberg.org/ebooks/59112.epub.images -O /tmp/rur.epub >> $log 2>&1
     wget https://www.gutenberg.org/ebooks/7849.epub.noimages -O /tmp/trial.epub >> $log 2>&1
 
     mkdir -p "$CALIBRE_LIBRARY_PATH"
-    calibredb add /tmp/rur.epub /tmp/trial.epub --with-library "$CALIBRE_LIBRARY_PATH"/ >> $log
+    sudo -u "$CALIBRE_LIBRARY_USER" calibredb add /tmp/rur.epub /tmp/trial.epub --with-library "$CALIBRE_LIBRARY_PATH"/ >> $log
     chown -R "$CALIBRE_LIBRARY_USER":"$CALIBRE_LIBRARY_USER" "$CALIBRE_LIBRARY_PATH"
     chmod 0770 -R "$CALIBRE_LIBRARY_PATH"
     echo_progress_done "Library installed to $CALIBRE_LIBRARY_PATH"
