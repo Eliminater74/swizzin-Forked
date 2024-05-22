@@ -114,7 +114,7 @@ function _clr() {
         fi
     done
     if [[ $schedule_remove = "true" ]]; then
-        apt_autoremove
+        pacman -Rns $(pacman -Qtdq) --noconfirm
     fi
 }
 
@@ -284,9 +284,9 @@ function _adduser() {
 
     echo "$user:$pass" > /root/"${user}".info
     if [[ $existing != "true" ]]; then
-        useradd "${user}" -m -G www-data -s /bin/bash >> $log 2>&1
+        useradd -m -G http "$user" -s /bin/bash >> $log 2>&1
     fi
-    chpasswd <<< "${user}:${pass}" >> $log 2>&1
+    echo "${user}:${pass}" | chpasswd >> $log 2>&1
     if [[ -f /etc/htpasswd ]]; then
         echo_log_only "htpasswd file exists"
         htpasswd -b /etc/htpasswd "$user" "$pass" >> $log 2>&1
@@ -297,17 +297,13 @@ function _adduser() {
     mkdir -p /etc/htpasswd.d/
     htpasswd -b -c /etc/htpasswd.d/htpasswd."${user}" "$user" "$pass" >> $log 2>&1
 
-    if [[ -f /install/.quota.lock ]]; then
-        bash /etc/swizzin/scripts/setdisk "$user"
-    fi
-
     mkdir /home/"$user"/.config
     chown "$user": /home/"$user"/.config
     chmod 750 /home/"${user}"
 
     if [[ -f /install/.panel.lock ]]; then setfacl -m g:swizzin:rx /home/"${user}"; fi
     echo "D /var/run/${user} 0750 ${user} ${user} -" >> /etc/tmpfiles.d/"${user}".conf
-    systemd-tmpfiles /etc/tmpfiles.d/"${user}".conf --create >> $log 2>&1
+    systemd-tmpfiles --create /etc/tmpfiles.d/"${user}".conf >> $log 2>&1
 
     for app in rtorrent rutorrent deluge autodl autobrr flood nzbget lounge transmission wireguard organizr mango qbittorrent; do
         if [[ -f /install/.${app}.lock ]]; then
@@ -341,7 +337,7 @@ function _adduser() {
     . /etc/swizzin/sources/functions/utils
 
     if [[ -n $SETUP_USER ]]; then
-        usermod -a -G sudo "$user"
+        usermod -a -G wheel "$user"
         rm /root/"$user".info
         echo "$user:$pass" > /root/.master.info
     elif [[ -z $SETUP_USER ]]; then # Only for non-master users, therefore only if this is not coming from setup.sh
@@ -416,11 +412,11 @@ function _deluser() {
     done
 
     if [[ -z $(which lsof) ]]; then
-        apt_install lsof
+        pacman -S --noconfirm lsof
     fi
 
     lsof -t /home/${user} | xargs -I % kill -9 %
-    deluser --force --remove-home ${user} >> $log 2>&1
+    userdel -r ${user} >> $log 2>&1
     groupdel ${user} >> $log 2>&1
     rm -f /etc/htpasswd.d/htpasswd.${user}
     htpasswd -D /etc/htpasswd ${user} >> $log 2>&1
@@ -451,7 +447,7 @@ function _chpasswd() {
         echo "$user:$pass" > /root/.master.info
     fi
     echo "$user:$pass" > /root/${user}.info
-    chpasswd <<< "${user}:${pass}" >> $log 2>&1
+    echo "${user}:${pass}" | chpasswd >> $log 2>&1
     htpasswd -b /etc/htpasswd $user "$pass" >> $log 2>&1
     mkdir -p /etc/htpasswd.d/
     htpasswd -b -c /etc/htpasswd.d/htpasswd.${user} $user "$pass" >> $log 2>&1
@@ -518,7 +514,7 @@ function _gobrr() {
         exit 1
     fi
 
-    apt_install --no-recommends mpv
+    pacman -S --noconfirm mpv
     mpv --vo=tct --really-quiet https://media.tenor.co/videos/36c2c191bf4e05338e48c83a9a81ce35/mp4 --loop-file=2 &
     if [[ ! -f /install/.autobrr.lock ]]; then
         bash /etc/swizzin/scripts/install/autobrr.sh >> ${log} 2>&1
@@ -559,7 +555,7 @@ _run_tests() {
     if [ "$BAD" == "true" ]; then
         exit 1
     else
-        echo_success "All tests completed succesfully.\nTest log can be found in $log"
+        echo_success "All tests completed successfully.\nTest log can be found in $log"
     fi
     log="$oldlog"
     export log
