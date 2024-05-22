@@ -1,6 +1,6 @@
 #!/bin/bash
 # Flying Sausages 2020 for swizzin
-#calibreweb installer
+# calibreweb installer
 
 calibrewebdir="/opt/calibreweb"
 clbWebUser="calibreweb" # or make this master user?
@@ -28,8 +28,8 @@ else
     swizdb set "calibre/library_path" "$CALIBRE_LIBRARY_PATH"
 fi
 
-if [[ ! -f /install/.calibre.lock ]]; then    # If it's not installed from swizzin
-    if [ ! -e "$CALIBRE_LIBRARY_PATH" ]; then # If the default location does not exist OR the variable is not set...
+if [[ ! -f /install/.calibre.lock ]]; then
+    if [ ! -e "$CALIBRE_LIBRARY_PATH" ]; then
         echo_warn "Calibre not installed, and no alternative library path is specified."
         echo_info "While having a calibre library is functionally required to use calibreweb, the calibreweb installer will not fail without it. You can create a calibre library at a later stage."
         if ask "Install Calibre through swizzin now?" Y; then
@@ -42,14 +42,14 @@ if [[ ! -f /install/.calibre.lock ]]; then    # If it's not installed from swizz
 fi
 
 function _install_dependencies_calibreweb() {
-    apt_install unzip imagemagick
+    pacman -S --noconfirm unzip imagemagick
 }
 
 function _install_calibreweb() {
-    apt_install python3-pip python3-dev python3-venv
+    pacman -S --noconfirm python-pip python-venv
     mkdir -p /opt/.venv/calibreweb
     echo_progress_start "Creating venv for calibreweb"
-    python3 -m venv /opt/.venv/calibreweb
+    python -m venv /opt/.venv/calibreweb
     echo_progress_done "Venv created"
 
     echo_progress_start "Downloading calibreweb source code archive"
@@ -75,15 +75,13 @@ function _install_calibreweb() {
     useradd $clbWebUser --system -d "$calibrewebdir" >> $log 2>&1
     chown -R $clbWebUser:$clbWebUser $calibrewebdir
     chown -R ${clbWebUser}: /opt/.venv/calibreweb
-    #This bit right here will ensure that the system user created will have access to the master user's folders where he might have the CalibreDB
     usermod -a -G "${CALIBRE_LIBRARY_USER}" $clbWebUser >> $log 2>&1
     echo_progress_done
 
     echo_progress_start "Installing python dependencies"
-    sudo -u ${clbWebUser} bash -c "/opt/.venv/calibreweb/bin/pip3 install -r $calibrewebdir/requirements.txt" >> $log 2>&1
-    #fuck ldap. all my homies hate ldap
+    sudo -u ${clbWebUser} bash -c "/opt/.venv/calibreweb/bin/pip install -r $calibrewebdir/requirements.txt" >> $log 2>&1
     sed '/ldap/Id' -i $calibrewebdir/optional-requirements.txt
-    sudo -u ${clbWebUser} bash -c "/opt/.venv/calibreweb/bin/pip3 install -r $calibrewebdir/optional-requirements.txt" >> $log 2>&1
+    sudo -u ${clbWebUser} bash -c "/opt/.venv/calibreweb/bin/pip install -r $calibrewebdir/optional-requirements.txt" >> $log 2>&1
     echo_progress_done
 }
 
@@ -92,7 +90,6 @@ _install_kepubify() {
     wget -q "https://github.com/pgaskin/kepubify/releases/download/v3.1.2/kepubify-linux-64bit" -O /tmp/kepubify >> $log 2>&1
     chmod a+x /tmp/kepubify
     mv /tmp/kepubify /usr/local/bin/kepubify
-    #TODO and figure out if it's needed for all cases or not
     echo_progress_done
 }
 
@@ -116,9 +113,9 @@ Description=calibreweb
 [Service]
 User=$clbWebUser
 Type=simple
-ExecStart=/opt/.venv/calibreweb/bin/python3 $calibrewebdir/cps.py
+ExecStart=/opt/.venv/calibreweb/bin/python $calibrewebdir/cps.py
 WorkingDirectory=$calibrewebdir
-Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin:/opt/.venv/calibreweb/bin
+Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/opt/.venv/calibreweb/bin
 
 [Install]
 WantedBy=multi-user.target
@@ -143,7 +140,7 @@ _post_libdir() {
     curl -s -k 'http://127.0.0.1:8083/basicconfig' -H 'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8' --compressed -H 'Content-Type: application/x-www-form-urlencoded' -H 'Connection: keep-alive' \
         --data-urlencode "config_calibre_dir=$CALIBRE_LIBRARY_PATH" \
         --data-urlencode "submit=" >> "$log" || {
-        echo_log_only "curl fucked"
+        echo_log_only "curl failed"
         return 1
     }
     echo_progress_done "Library set"
@@ -152,7 +149,7 @@ _post_libdir() {
 _post_changepass() {
     sleep 5
     pass="$(_get_user_password "$CALIBRE_LIBRARY_USER")"
-    /opt/.venv/calibreweb/bin/python3 /opt/calibreweb/cps.py -s admin:"${pass}" >> "$log" 2>&1 || {
+    /opt/.venv/calibreweb/bin/python /opt/calibreweb/cps.py -s admin:"${pass}" >> "$log" 2>&1 || {
         echo_info "Could not change password, please use admin:admin123 to log in and change credentials immediately."
         return 1
     }
