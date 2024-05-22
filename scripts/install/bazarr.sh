@@ -9,14 +9,13 @@
 #   including (via compiler) GPL-licensed code must also be made available
 #   under the GPL along with build & install instructions.
 
-codename=$(lsb_release -cs)
 _install() {
 
     user=$(cut -d: -f1 < /root/.master.info)
     . /etc/swizzin/sources/functions/pyenv
     systempy3_ver=$(get_candidate_version python3)
 
-    if dpkg --compare-versions ${systempy3_ver} lt 3.8.0; then
+    if [[ $(python3 --version | awk '{print $2}') < "3.8.0" ]]; then
         PYENV=True
     fi
 
@@ -28,13 +27,13 @@ _install() {
             chown -R ${user}: /opt/.venv/bazarr
             ;;
         *)
-            apt_install python3-pip python3-dev python3-venv
+            pacman -S --noconfirm python-pip python-venv
             python3_venv ${user} bazarr
             ;;
     esac
 
     if [[ $(_os_arch) =~ "arm" ]]; then
-        apt_install libxml2-dev libxslt1-dev python3-libxml2 python3-lxml unrar-free ffmpeg libatlas-base-dev
+        pacman -S --noconfirm libxml2 libxslt python-libxml2 python-lxml unrar ffmpeg
     fi
 
     echo_progress_start "Downloading bazarr source"
@@ -42,7 +41,7 @@ _install() {
         echo_error "Failed to download"
         exit 1
     }
-    echo_progress_done "Souce downloaded"
+    echo_progress_done "Source downloaded"
 
     echo_progress_start "Extracting zip"
     rm -rf /opt/bazarr
@@ -69,7 +68,6 @@ _config() {
     if [[ -f /install/.sonarr.lock ]]; then
         echo_progress_start "Configuring bazarr to work with sonarr"
 
-        # TODO: Use owner when the updaters are merged
         sonarrConfigFile=/home/${user}/.config/Sonarr/config.xml
 
         if [[ -f "${sonarrConfigFile}" ]]; then
@@ -99,7 +97,6 @@ SONC
     if [[ -f /install/.radarr.lock ]]; then
         echo_progress_start "Configuring bazarr to work with radarr"
 
-        # TODO: Use owner when the updaters are merged
         radarrConfigFile=/home/${user}/.config/Radarr/config.xml
 
         if [[ -f "${radarrConfigFile}" ]]; then
@@ -113,7 +110,6 @@ SONC
         fi
 
         cat >> /opt/bazarr/data/config/config.ini << RADC
-
 [radarr]
 apikey = ${radarrapi}
 full_update = Daily
@@ -195,8 +191,6 @@ _install
 _config
 _nginx
 _systemd
-
-#curl 'http://127.0.0.1:6767/bazarr/save_wizard' --data 'settings_general_ip=127.0.0.1&settings_general_port=6767&settings_general_baseurl=%2Fbazarr%2F&settings_general_sourcepath=&settings_general_destpath=&settings_general_sourcepath=&settings_general_destpath=&settings_general_sourcepath=&settings_general_destpath=&settings_general_sourcepath=&settings_general_destpath=&settings_general_sourcepath=&settings_general_destpath=&settings_general_sourcepath_movie=&settings_general_destpath_movie=&settings_general_sourcepath_movie=&settings_general_destpath_movie=&settings_general_sourcepath_movie=&settings_general_destpath_movie=&settings_general_sourcepath_movie=&settings_general_destpath_movie=&settings_general_sourcepath_movie=&settings_general_destpath_movie=&settings_subfolder=current&settings_subfolder_custom=&settings_addic7ed_username=&settings_addic7ed_password=&settings_addic7ed_random_agents=on&settings_assrt_token=&settings_betaseries_token=&settings_legendastv_username=&settings_legendastv_password=&settings_napisy24_username=&settings_napisy24_password=&settings_opensubtitles_username=&settings_opensubtitles_password=&settings_subscene_username=&settings_subscene_password=&settings_xsubs_username=&settings_xsubs_password=&settings_subliminal_providers=&settings_subliminal_languages=en&settings_serie_default_forced=False&settings_movie_default_forced=False&settings_sonarr_ip=127.0.0.1&settings_sonarr_port=8989&settings_sonarr_baseurl=%2Fsonarr&settings_sonarr_apikey=${sonarrapi}&settings_radarr_ip=127.0.0.1&settings_radarr_port=7878&settings_radarr_baseurl=%2Fradarr&settings_radarr_apikey=${radarrapi}'
 
 touch /install/.bazarr.lock
 
